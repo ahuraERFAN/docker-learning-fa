@@ -1,0 +1,59 @@
+# ---------------------------------------------------------------
+# Lesson 7: the whole stack with one command
+#   docker compose up -d --build
+#
+# 3 services on one private network. They reach each other by name:
+#   api  -> db:5432  and  redis:6379
+# ---------------------------------------------------------------
+
+services:
+
+  api:
+    build:
+      context: .                  # build from ./Dockerfile
+      # Lesson 10: uncomment to use the production image (non-root + HEALTHCHECK)
+      # dockerfile: Dockerfile.prod
+      args:                       # same as: docker build --build-arg ...
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    image: docker-lab:compose
+    ports:
+      - "8000:8000"               # host:container
+    env_file: .env                # APP_NAME, DATABASE_URL, REDIS_URL ...
+    depends_on:
+      db:
+        condition: service_healthy   # wait until postgres is really ready
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # data survives `docker compose down`
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    # no "ports:" -> postgres is reachable only inside the Docker network (safer)
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]   # save data to disk
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

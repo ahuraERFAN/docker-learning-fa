@@ -1,0 +1,10 @@
+services:
+  todo:
+    build:
+      context: .
+      args:
+        PIP_INDEX_URL: https://package-mirror.liara.ir/repository/pypi/simple
+    image: todo-manual:compose     # must be UNIQUE per project
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

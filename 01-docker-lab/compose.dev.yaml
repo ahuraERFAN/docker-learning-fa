@@ -1,0 +1,19 @@
+# ---------------------------------------------------------------
+# Lesson 8: development mode (used ON TOP of compose.yaml)
+#   docker compose -f compose.yaml -f compose.dev.yaml up --build
+#
+# Your app/ folder is mounted into the container, and uvicorn --reload
+# restarts the app every time you save a file. No rebuild needed.
+# ---------------------------------------------------------------
+
+services:
+  api:
+    volumes:
+      - ./app:/app/app            # bind mount: host folder -> container folder
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    environment:
+      APP_VERSION: "dev"
+      # On Windows, file-change events from D:\ don't always reach the Linux
+      # container. Polling = check the files every moment instead of waiting
+      # for an event. A bit more CPU, but reload works reliably.
+      WATCHFILES_FORCE_POLLING: "true"
